@@ -1,0 +1,358 @@
+/* Copyright (c) 2017 FIRST. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted (subject to the limitations in the disclaimer below) provided that
+ * the following conditions are met:
+ *
+ * Redistributions of source code must retain the above copyright notice, this list
+ * of conditions and the following disclaimer.
+ *
+ * Redistributions in binary form must reproduce the above copyright notice, this
+ * list of conditions and the following disclaimer in the documentation and/or
+ * other materials provided with the distribution.
+ *
+ * Neither the name of FIRST nor the names of its contributors may be used to endorse or
+ * promote products derived from this software without specific prior written permission.
+ *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS
+ * LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ * Created Nov 2017 by Team 8478 Programmers and Mentors
+ */
+
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import java.util.concurrent.TimeUnit;
+
+import static android.R.attr.button;
+import static android.R.attr.right;
+import static com.sun.tools.javac.tree.JCTree.Tag.SL;
+
+
+/**
+ * This file contains an example of an iterative (Non-Linear) "OpMode".
+ * An OpMode is a 'program' that runs in either the autonomous or the teleop period of an FTC match.
+ * The names of OpModes appear on the menu of the FTC Driver Station.
+ * When an selection is made from the menu, the corresponding OpMode
+ * class is instantiated on the Robot Controller and executed.
+ *
+ * This particular OpMode just executes a basic Tank Drive Teleop for a two wheeled robot
+ * It includes all the skeletal structure that all iterative OpModes contain.
+ *
+ * Use Android Studios to Copy this Class, and Paste it into your team's code folder with a new name.
+ * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
+ */
+
+@TeleOp(name="TeleOp8478", group="TeleOp")
+//@Disabled
+public class TeleOpMode extends OpMode
+{
+    // Declare OpMode members.
+    private ElapsedTime runtime = new ElapsedTime();
+    private float frontleft;
+    private float frontright;
+    private float backright;
+    private float backleft;
+
+    private int ArmPos = 0;
+    private boolean WristDown = false;
+
+    //drive motors
+    DcMotor motorfrontright;
+    DcMotor motorfrontleft;
+    DcMotor motorbackright;
+    DcMotor motorbackleft;
+
+    //relic arm servos SL
+    //Servo servorotate;
+
+    //jewel arm servos
+    Servo servojeweldown;
+    Servo servojewelacross;
+
+    //cube lifter servop
+    Servo servocubegripper1;
+    Servo servocubegripper2;
+    Servo servocubelifter;
+
+    //relic arm servos and motor
+    DcMotor dcmotorrelicrotate;
+    CRServo servorelicarm;
+    Servo servorelicwrist;
+    Servo servorelicgripper;
+
+
+
+    /*
+     * Code to run ONCE when the driver hits INIT
+     */
+    @Override
+    public void init() {
+
+        telemetry.addData("Status", "Initialized");
+
+        motorfrontright = hardwareMap.dcMotor.get("motorFR");
+        motorfrontleft = hardwareMap.dcMotor.get("motorFL");
+        motorbackright = hardwareMap.dcMotor.get("motorBR");
+        motorbackleft = hardwareMap.dcMotor.get("motorBL");
+
+        motorbackleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motorbackright.setMode(DcMotor.RunMode.RUN_USING_ENCODER) ;
+        motorfrontleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motorfrontright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        //dcmotorrelicarm.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+       // ArmPos = dcmotorrelicrotate.getCurrentPosition();
+
+
+        /** brake for drive motors if needed
+         motorbackleft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+         motorbackright.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+         motorfrontleft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+         motorfrontright.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+         */
+
+        //reverse direction for opposite side motors
+        motorfrontright.setDirection(DcMotor.Direction.REVERSE);
+        motorbackright.setDirection(DcMotor.Direction.REVERSE);
+
+
+        servojeweldown = hardwareMap.servo.get("servodown");
+        servojewelacross = hardwareMap.servo.get("servoacross");
+
+        servocubegripper1 = hardwareMap.servo.get("servocubegripper1");
+        servocubegripper2 = hardwareMap.servo.get("servocubegripper2");
+        servocubelifter = hardwareMap.servo.get("servolifter");
+        //servorotate = hardwareMap.servo.get("servorotate");
+        dcmotorrelicrotate = hardwareMap.dcMotor.get("motorrelicrotate");
+        servorelicarm = hardwareMap.crservo.get("servorelicarm");
+        servorelicwrist = hardwareMap.servo.get("servorelicwrist");
+        servorelicgripper = hardwareMap.servo.get("servorelicgripper");
+
+
+        dcmotorrelicrotate.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        //dcmotorrelicarm.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        //servorelicwrist.setPosition(.125);//relic wrist down
+        //WristDown = true;
+
+        // Tell the driver that initialization is complete.
+        telemetry.addData("Status", "Initialized");
+    }
+
+    /*
+     * Code to run REPEATEDLY after the driver hits INIT, but before they hit PLAY
+     */
+
+    /*
+     * Code to run ONCE when the driver hits PLAY
+     */
+    @Override
+    public void start() {
+        runtime.reset();
+    }
+
+    /*
+     * Code to run REPEATEDLY after the driver hits PLAY but before they hit STOP
+     */
+    @Override
+    public void loop() {
+
+        //mecanum drive code
+        double MaxSpeedScale = .5;
+        double DriveScale = 1;
+        double r = Math.hypot(gamepad1.left_stick_x, gamepad1.right_stick_y );
+        servojeweldown.setPosition(0.5); //ML arm should come up every time loop is ran
+
+
+        double robotAngle = Math.atan2(gamepad1.right_stick_y, gamepad1.left_stick_x) - Math.PI / 4;
+        double rightX = -gamepad1.right_stick_x;
+        double rightY = gamepad1.right_stick_y;
+        final double v1 = DriveScale * r * Math.cos(robotAngle) + (rightX * MaxSpeedScale);
+        final double v2 = DriveScale * r * Math.sin(robotAngle) - (rightX * MaxSpeedScale);
+        final double v3 = DriveScale * r * Math.sin(robotAngle) + (rightX * MaxSpeedScale);
+        final double v4 = DriveScale * r * Math.cos(robotAngle) - (rightX * MaxSpeedScale);
+       // telemetry.addData("Motors", "rAng (%.2f), rX (%.2f)", robotAngle, rightX);
+       // telemetry.addData("Motors", "rAng (%.2f), rX (%.2f)", robotAngle, rightY);
+        motorfrontleft.setPower(v1);
+        motorfrontright.setPower(v2);
+        motorbackleft.setPower(v3);
+        motorbackright.setPower(v4);
+
+
+
+        // update the position of the servos.  Gamepad button assignments. Save for testing servos.
+        /**
+         if (gamepad2.a)
+         {
+         servojeweldown.setPosition(.5);//jewel arm up
+         }
+
+         if (gamepad2.b)
+         {
+         servojeweldown.setPosition(.01);//jewel arm down
+         }
+         */
+        /**
+         if (gamepad2.x)
+         {
+         servojewelacross.setPosition(.75);//jewel arm forward
+         }
+
+         if (gamepad2.y)
+         {
+         servojewelacross.setPosition(.3);//jewel arm backwards
+         }
+         */
+
+
+        if (gamepad1.b) //SL- changed button for driver
+        {
+            servocubegripper1.setPosition(.3); //close servocubegripper
+            servocubegripper2.setPosition(.3); //close servocubegripper
+        }
+
+        if (gamepad1.a) //SL- changed button for driver
+        {
+            servocubegripper1.setPosition(0.2); //open servocubegripper
+            servocubegripper2.setPosition(0.4); //open servocubegripper
+        }
+
+        if (gamepad1.dpad_up)
+        {
+            servocubelifter.setPosition(1.0);//lifter up
+        }
+
+        if (gamepad1.dpad_down)
+        {
+            servocubelifter.setPosition(.05);//lifter down
+        }
+
+        if (gamepad1.dpad_right)
+        {
+            servocubelifter.setPosition(.45);//lifter half way SL- changed from .45 to .35 to .25 to .15
+        }
+
+        if (gamepad1.dpad_left)
+        {
+            servocubelifter.setPosition(.70);//lifter 3/4 way
+        }
+
+//relic arm code
+
+        if  (gamepad2.left_stick_x < 0 )
+        {
+            dcmotorrelicrotate.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+            dcmotorrelicrotate.setDirection(DcMotorSimple.Direction.FORWARD);
+            dcmotorrelicrotate.setPower(.125);//relic arm rotate
+            ArmPos = dcmotorrelicrotate.getCurrentPosition();
+            telemetry.addData("ArmPos",": %7d",ArmPos );
+            telemetry.update();
+        }
+        else if(gamepad2.left_stick_x > 0)
+        {
+            dcmotorrelicrotate.setDirection(DcMotorSimple.Direction.REVERSE);
+            dcmotorrelicrotate.setPower(0.125);
+            ArmPos = dcmotorrelicrotate.getCurrentPosition();
+            telemetry.addData("ArmPos",": %7d",ArmPos );
+            telemetry.update();
+        }
+        else if(gamepad2.left_stick_x == 0)
+        {
+            dcmotorrelicrotate.setPower(0.0);
+            dcmotorrelicrotate.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+            ArmPos = dcmotorrelicrotate.getCurrentPosition();
+            // telemetry.addData("ArmPos",": %7d",ArmPos );
+            telemetry.update();
+        }
+
+
+        if (gamepad2.right_stick_y < 0)
+        {
+            servorelicarm.setDirection(DcMotorSimple.Direction.FORWARD);
+            servorelicarm.setPower(-.90*gamepad2.right_stick_y);//relic gripper arm more reliable at .9 than 1
+        }
+
+        else if (gamepad2.right_stick_y > 0)
+        {
+            servorelicarm.setDirection(DcMotorSimple.Direction.REVERSE);
+            servorelicarm.setPower(.90*gamepad2.right_stick_y);//relic gripper arm more reliable at .9 than 1
+        }
+
+        else if (gamepad2.right_stick_y == 0) {
+            servorelicarm.setPower(0.0);
+        }
+
+/*       if (gamepad2.left_trigger !=0 && gamepad2.left_stick_x !=0)
+        {
+            // servorelicgripper.setPosition(gamepad2.left_stick_x);//close cube gripper
+            //Note: Find range of gamepad1.left_trigger
+         }
+*/
+
+        if (gamepad2.dpad_left && !gamepad2.dpad_down && !gamepad2.dpad_up && !gamepad2.dpad_right)
+        {
+             servorelicgripper.setPosition(.8);//relic gripper Open
+        }
+
+       /* if(gamepad2.dpad_left && !WristDown)
+        {
+            telemetry.addData("Wrist Must Be","Down to Open !!!" );
+            telemetry.update();
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }*/
+
+
+        if (gamepad2.dpad_right)
+        {
+            servorelicgripper.setPosition(.15);//relic gripper Close
+        }
+
+        if (gamepad2.dpad_up)
+        {
+            servorelicwrist.setPosition(1);//relic wrist up
+            WristDown = false;
+
+        }
+
+        if (gamepad2.dpad_down)
+        {
+            servorelicwrist.setPosition(.125);//relic wrist down
+            WristDown = true;
+        }
+
+        // Show the elapsed game time and wheel power.
+        telemetry.addData("Status", "Run Time: " + runtime.toString());
+        //telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
+    }
+
+    /*
+     * Code to run ONCE after the driver hits STOP
+     */
+    @Override
+    public void stop() {
+    }
+
+}
+

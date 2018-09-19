@@ -1,0 +1,672 @@
+/* Copyright (c) 2017 FIRST. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted (subject to the limitations in the disclaimer below) provided that
+ * the following conditions are met:
+ *
+ * Redistributions of source code must retain the above copyright notice, this list
+ * of conditions and the following disclaimer.
+ *
+ * Redistributions in binary form must reproduce the above copyright notice, this
+ * list of conditions and the following disclaimer in the documentation and/or
+ * other materials provided with the distribution.
+ *
+ * Neither the name of FIRST nor the names of its contributors may be used to endorse or
+ * promote products derived from this software without specific prior written permission.
+ *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS
+ * LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+package org.firstinspires.ftc.teamcode;
+
+import android.app.Activity;
+import android.graphics.Color;
+import android.view.View;
+
+import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.hardware.ColorSensor;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.robotcore.external.ClassFactory;
+import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
+import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
+import org.firstinspires.ftc.robotcore.external.navigation.RelicRecoveryVuMark;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackableDefaultListener;
+import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
+
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
+
+/**
+ * Created by Michael on 11/15/2017.
+ */
+
+@Autonomous(name="RED AUTON (PICK ME)", group="Autonomous")
+//@Disabled
+public class AutonRed2 extends OpMode {
+
+    //Declares all variables
+
+    double counter = 0;
+    double initPosition = 0;
+    double target;
+
+    //TODO: Add magic numbers
+    /**
+     double forwardsOffRamp = 0.6858;
+     double turn = 0;
+     double slot1 = 0.101070918;
+     double slot2 = 0.3032125;
+     double slot3 = 0.505354082;
+     double lastLeg = 0.33655;
+     */
+
+    double breakout = 2000;
+
+    BNO055IMU IMUUnit1;
+    BNO055IMU IMUUnit2;
+
+    DcMotor motorfrontright;
+    DcMotor motorfrontleft;
+    DcMotor motorbackright;
+    DcMotor motorbackleft;
+
+    Servo servocubegripper1;//ML-changed variable name
+    Servo servocubegripper2;//ML-changed variable name
+    Servo servocubelifter;
+    Servo servojeweldown;
+    Servo servojewelacross;
+    Servo servorelicwrist;
+    Servo servorelicgripper;
+    private VuforiaLocalizer vuforia;
+
+    ColorSensor sensorColor;
+    DistanceSensor sensorDistance;
+
+    // hsvValues is an array that will hold the hue, saturation, and value information.
+    // values is a reference to the hsvValues array.
+    // float values[] = new float[]{0F, 0F, 0F};
+    // sometimes it helps to multiply the raw RGB values with a scale factor
+    // to amplify/attentuate the measured values.
+    double SCALE_FACTOR = 255;
+
+    View relativeLayout;
+    VuforiaLocalizer.Parameters parameters;
+
+        /*
+         * Initialize the drive system variables.
+         * The init() method of the hardware class does all the work here
+         */
+    //robot.init(hardwareMap);
+
+    /* Declare OpMode members. */
+    //HardwarePushbot robot = new HardwarePushbot();   // Use a Pushbot's hardware
+    private ElapsedTime runtime = new ElapsedTime();
+
+    //Use with IMU to drive accurately, may use change of basis with second IMU in order to get two sets of sensor data
+    double positionX;
+    double positionY;
+    double positionZ;
+
+    double velocityX;
+    double velocityY;
+    double veloctiyZ;
+
+    Orientation angle;
+
+    boolean ColorOK = false;
+    boolean BlueTeamColor = false;
+    boolean RedTeamColor = false;
+
+    boolean CubePositionFound = false;
+    boolean LeftCube = false;
+    boolean RightCube = false;
+    boolean CenterCube = false;
+
+    //State machine markers
+    boolean step1 = false;
+    boolean step2 = false;
+    boolean step3 = false;
+    boolean step4 = false;
+    boolean step5 = false;
+    boolean step6 = false;
+    boolean step7 = false;
+    boolean step8 = false;
+    boolean step9 = false;
+    boolean step10 = false;
+
+    /*
+     * Code bellow to run ONCE when the driver hits INIT
+     */
+    @Override
+    public void init() {
+        //IMU on arm, angle is a function of servo position, use basis transform, there is rotation on the plane it is on regardless, so ignore for now
+        //IMUUnit1 = hardwareMap.get(BNO055IMU.class, "Expansion Hub 2");
+        //IMU on base, all good
+        IMUUnit2 = hardwareMap.get(BNO055IMU.class, "imu");
+
+        motorfrontright = hardwareMap.dcMotor.get("motorFR");
+        motorfrontleft = hardwareMap.dcMotor.get("motorFL");
+        motorbackright = hardwareMap.dcMotor.get("motorBR");
+        motorbackleft = hardwareMap.dcMotor.get("motorBL");
+
+        motorbackleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motorbackright.setMode(DcMotor.RunMode.RUN_USING_ENCODER) ;
+        motorfrontleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motorfrontright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
+        servocubegripper1 = hardwareMap.servo.get("servocubegripper1");//ML-changed variable name
+        servocubegripper2 = hardwareMap.servo.get("servocubegripper2");//ML-changed variable name
+        servojeweldown = hardwareMap.servo.get("servodown");
+        servojewelacross = hardwareMap.servo.get("servoacross");
+        servocubelifter = hardwareMap.servo.get("servolifter");
+        servorelicwrist = hardwareMap.servo.get("servorelicwrist");
+        servorelicgripper = hardwareMap.servo.get("servorelicgripper");
+        servojeweldown.setPosition(0.5);//jewel arm up
+        //servorelicwrist.setPosition(.125);//relic wrist down
+        // servorelicgripper.setPosition(.8);//relic gripper Open
+        telemetry.addData("Motors", "Initialized");
+        telemetry.update();
+
+        // get a reference to the color sensor.
+        sensorColor = hardwareMap.get(ColorSensor.class, "sensor_color_distance");
+        // get a reference to the distance sensor that shares the same name.
+        sensorDistance = hardwareMap.get(DistanceSensor.class, "sensor_color_distance");
+
+        telemetry.addData("Color and Distance Sensor", "Initialized");
+        telemetry.update();
+
+        OpenGLMatrix lastLocation = null;
+
+        VuforiaLocalizer vuforia;
+
+        // get a reference to the RelativeLayout so we can change the background
+        // color of the Robot Controller app to match the hue detected by the RGB sensor.
+        int relativeLayoutId = hardwareMap.appContext.getResources().getIdentifier("RelativeLayout", "id", hardwareMap.appContext.getPackageName());
+        relativeLayout = ((Activity) hardwareMap.appContext).findViewById(relativeLayoutId);
+
+        telemetry.addData("Relative Layout", "Initialized");
+        telemetry.update();
+
+        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+        parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
+
+        telemetry.addData("Vuforia", "Initialized");
+        telemetry.update();
+
+        // OR...  Do Not Activate the Camera Monitor View, to save power
+        // VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
+
+        parameters.vuforiaLicenseKey = "AUFNX0T/////AAAAGR0hcHWFlEEUj5ASRFTWKwURhfmKsUooNlvV2zA6vUlpPJsgNZHBKP1eVI8zxZtX1krL5ktd5dTRb2t8+Y02l79A7S5mv/sdL7QTlQi05e66/1u3mJRQZl5m81PGITiW3FGGbIULWeozvf3C7o6LXwGpe4jXcdOQ/zKx5r2ylNj4AvjaoWUOpndpB+4W+LQA1P/PhMi85JOeUrFvpyCuwVPGjR9NyMZIAZCMPFbRTiS9bC/NLlWGK5d18LFMTn7RtoIZ2LKslK8LasvZiFuvgoQznps4mg5KtSbfAXBeZPxNjyZYqdyTitaVibpuHxRY260Z3VTo6FSdypltrN6MCn44KuHeN5/CkX2YtrAUUVVU";
+
+        parameters.cameraDirection = VuforiaLocalizer.CameraDirection.BACK;
+        this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
+
+        VuforiaTrackables relicTrackables = this.vuforia.loadTrackablesFromAsset("RelicVuMark");
+        VuforiaTrackable relicTemplate = relicTrackables.get(0);
+        relicTemplate.setName("relicVuMarkTemplate"); // can help in debugging; otherwise not necessary
+        relicTrackables.activate();
+
+        // Send telemetry message to signify robot waiting;
+        telemetry.addData("Status", "Ready to run");    //
+        telemetry.update();
+    }
+
+    /*
+     * Code to run REPEATEDLY after the driver hits INIT, but before they hit PLAY
+     */
+    @Override
+    public void init_loop() {
+        telemetry.addData("Status", "Initialized");
+        servorelicwrist.setPosition(.3);
+    }
+
+    /*
+     * Code to run ONCE when the driver hits PLAY
+     */
+    @Override
+    public void start(){
+        runtime.reset();
+    }
+
+    /*
+     * Code to run REPEATEDLY after the driver hits PLAY but before they hit STOP
+     */
+    @Override
+    public void loop()
+    {
+
+        //STEP 1: Initialize the positions of the motor sets
+
+        if (!step1) {
+
+            //Servogripper is set to closed position
+            servocubegripper1.setPosition(0.8);//ML-changed variable name and value from .2
+            servocubegripper2.setPosition(0.2);//ML-changed variable name and value from .2
+            //Servocube arm is set to slightly above ground
+            servocubelifter.setPosition(0.2);
+
+            //Servojeweldown is set to down position v w
+            servojeweldown.setPosition(.01);
+
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            telemetry.addData("Step 1", "Compelted");
+            telemetry.update();
+
+            step1 = true;
+        }
+
+        //STEP 2: Read the jewel color
+
+        if (step1 && !step2) {
+
+            telemetry.addData("RGB Sensor", null);
+            //convert the RGB values to HSV values.
+            //multiply by the SCALE_FACTOR.
+            //then cast it back to int (SCALE_FACTOR is a double)
+            // double SCALE_FACTOR = 255;
+            float hsvValues[] = {0F, 0F, 0F};
+            final float values[] = hsvValues;
+            //int relativeLayoutId = hardwareMap.appContext.getResources().getIdentifier("RelativeLayout", "id", hardwareMap.appContext.getPackageName());
+            // final View relativeLayout = ((Activity) hardwareMap.appContext).findViewById(relativeLayoutId);
+            Color.RGBToHSV((int) (sensorColor.red() * SCALE_FACTOR),
+                    (int) (sensorColor.green() * SCALE_FACTOR),
+                    (int) (sensorColor.blue() * SCALE_FACTOR),
+                    hsvValues);
+
+            // send the info back to driver station using telemetry function.
+            telemetry.addData("Distance (cm)",
+                    String.format(Locale.US, "%.02f", sensorDistance.getDistance(DistanceUnit.CM)));
+            telemetry.addData("Alpha", sensorColor.alpha());
+            telemetry.addData("Red  ", sensorColor.red());
+            telemetry.addData("Green", sensorColor.green());
+            telemetry.addData("Blue ", sensorColor.blue());
+            telemetry.addData("Hue", hsvValues[0]);
+
+            if (0.75*sensorColor.blue() > sensorColor.red()) {
+                BlueTeamColor = true;
+                ColorOK = true;
+            }
+            else if (0.75*sensorColor.red() >sensorColor.blue()) {
+                RedTeamColor = true;
+                ColorOK = true;
+            }
+
+            //TODO: Timer breakout, may get stuck if the sensor if damaged in some way
+
+            // change the background color to match the color detected by the RGB sensor.
+            // pass a reference to the hue, saturation, and value array as an argument
+            // to the HSVToColor method.
+            relativeLayout.post(new Runnable() {
+                public void run() {
+                    relativeLayout.setBackgroundColor(Color.HSVToColor(0xff, values));
+                }
+            });
+
+            if(BlueTeamColor && ColorOK) {
+                telemetry.clearAll();
+                telemetry.addData("Blue Color", "Found !");
+
+                //Will exit out of state 2, kills state 1
+
+                step2 = true;
+
+                telemetry.addData("Step 2", "Compelted");
+            }
+            else if(RedTeamColor && ColorOK) {
+                telemetry.clearAll();
+                telemetry.addData("Red Color", "Found !");
+
+                //Will exit out of state 2, kills state 1
+
+                step2 = true;
+
+                telemetry.addData("Step 2", "Compelted");
+            }
+
+            telemetry.update();
+
+        }
+
+        //STEP 3: Move servoacross to remove jewel
+        if (step2 && !step3) {
+
+            telemetry.clear();
+
+            if(BlueTeamColor)
+            {
+                telemetry.addData("Remove Blue", "Jewel;");
+
+                //Moves jewelservoarm forwardsOffRamp (as blue is detected and we are in red)
+                servojewelacross.setPosition(.75);
+
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                if (Math.abs(servojewelacross.getPosition() - 0.75) <= 0.05) {
+                    //Will exit out of state 3, kills state 2
+
+                    step3 = true;
+
+                    telemetry.addData("State 3", "Exits");
+
+                    telemetry.addData("Step 3", "Completed");
+                }
+            }
+
+            if(RedTeamColor)
+            {
+                telemetry.addData("Remove Red", "Jewel;");
+
+                //Moves jewelservoarm backwards (as red is detected and we are in red)
+                servojewelacross.setPosition(.3);
+
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                if (Math.abs(servojewelacross.getPosition() - 0.3) <= 0.05) {
+                    //Will exit out of state 3, kills state 2
+
+                    step3 = true;
+
+                    telemetry.addData("State 3", "Exits");
+
+                    telemetry.addData("Step 3", "Completed");
+                }
+            }
+
+            telemetry.update();
+
+        }
+
+        //STEP 4: Move servojewelacross back to standby and move servojeweldown to up position
+        if (step3 && !step4) {
+
+            telemetry.clear();
+
+            servojewelacross.setPosition(.5);//recenter jewel arm
+            servojeweldown.setPosition(.5); //move arm up
+
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            if (Math.abs(servojewelacross.getPosition() - 0.5) <= 0.05 && Math.abs(servojeweldown.getPosition() - 0.5) <= 0.05) {
+                //Will exit out of state 4, kills state 3
+
+                step4 = true;
+
+                telemetry.addData("Jewel arm", "Resets");
+
+                telemetry.addData("Step 4", "Completed");
+            }
+
+            telemetry.update();
+
+        }
+
+        //STEP 5: Read Glif with Vuforia camera
+        /*
+        if (step4 && !step5) {
+
+            telemetry.update();
+        }
+        */
+        step5 = true;
+        //Emergency breakout until IMU can be fixed
+
+        // CenterCube = true;
+
+        /**
+         //STEP 6: Half-way diagnostic
+         if (step5 && !step6) {
+
+         velocityX = IMUUnit2.getVelocity().xVeloc;
+         velocityY = IMUUnit2.getVelocity().yVeloc;
+         veloctiyZ = IMUUnit2.getVelocity().zVeloc;
+
+         positionX = IMUUnit2.getPosition().x;
+         positionY = IMUUnit2.getPosition().y;
+         positionZ = IMUUnit2.getPosition().z;
+
+         angle = IMUUnit2.getAngularOrientation().toAxesReference(AxesReference.INTRINSIC).toAxesOrder(AxesOrder.XYZ);
+
+         telemetry.addData("X Axis Veloctiy", velocityX);
+         telemetry.addData("Y Axis Veloctiy", velocityY);
+         telemetry.addData("Z Axis Veloctiy", veloctiyZ);
+
+         telemetry.addData("X Axis Position", positionX);
+         telemetry.addData("Y Axis Position", positionX);
+         telemetry.addData("Y Axis Position", positionX);
+
+         telemetry.addData("First Angle", angle.firstAngle);
+         telemetry.addData("Second Angle", angle.secondAngle);
+         telemetry.addData("Third Angle", angle.thirdAngle);
+
+         telemetry.update();
+
+         try {
+         TimeUnit.SECONDS.sleep(1);
+         } catch (InterruptedException e) {
+         e.printStackTrace();
+         }
+
+         //Will exit out of state 6, kills state 5
+
+         step6 = true;
+
+         telemetry.addData("Step 6", "Compelted");
+         telemetry.addData("Diagnostic", "Operational");
+         telemetry.update();
+
+         }
+
+         //STEP 7: Move off of raised platform
+         if(step6 && !step7) {
+
+         if (counter < 1) {
+         initPosition = IMUUnit2.getPosition().x;
+         counter++;
+         }
+
+         motorbackleft.setPower(0.5);
+         motorbackright.setPower(0.5);
+         motorfrontleft.setPower(0.5);
+         motorfrontright.setPower(0.5);
+
+         if (Math.abs(Math.abs(IMUUnit2.getPosition().x - initPosition) - forwardsOffRamp) <= 0.05) {
+         //Will exit out of state 7, kills state 6
+
+         step7 = true;
+
+         counter = 0;
+
+         telemetry.addData("Step 7", "Compelted");
+         telemetry.update();
+         }
+
+         }
+
+         //STEP 8: Turn to correct position
+         if (step7 && !step8) {
+
+         if (counter < 1) {
+         initPosition = IMUUnit2.getAngularOrientation().toAxesReference(AxesReference.INTRINSIC).toAxesOrder(AxesOrder.XYZ).firstAngle;
+         counter++;
+         }
+
+         motorbackleft.setPower(-0.5);
+         motorbackright.setPower(-0.5);
+         motorfrontleft.setPower(0.5);
+         motorfrontright.setPower(0.5);
+
+         if (Math.abs (Math.abs(IMUUnit2.getAngularOrientation().toAxesReference(AxesReference.INTRINSIC).toAxesOrder(AxesOrder.XYZ).firstAngle - initPosition) - turn) <= 0.05) {
+
+         //Will exit out of state 8, kills state 7
+
+         step8 = true;
+
+         counter = 0;
+
+         telemetry.addData("Step 8", "Compelted");
+         telemetry.update();
+
+         }
+
+         }
+
+         //STEP 9: Drive sideways into correct
+         //TODO: Make color sensor based variation (very much useless)
+         if (step8 && !step9) {
+
+         if (counter < 1) {
+         initPosition = IMUUnit2.getPosition().y;
+
+         if (CubePositionFound) {
+         if (LeftCube) {
+         target = slot3;
+         }
+         else if (CenterCube) {
+         target = slot2;
+         }
+         else if (RightCube) {
+         target = slot1;
+         }
+         else {
+         target = 0;
+         }
+         }
+         else {
+         target = 0;
+         }
+
+         counter++;
+         }
+
+         motorbackleft.setPower(-0.5);
+         motorbackright.setPower(0.5);
+         motorfrontleft.setPower(-0.5);
+         motorfrontright.setPower(0.5);
+
+         if (Math.abs(Math.abs(IMUUnit2.getPosition().x - initPosition) - target) <= 0.05) {
+
+         //Will exit out of state 9, kills state 8
+
+         step9 = true;
+
+         counter = 0;
+
+         telemetry.addData("Step 9", "Compelted");
+         telemetry.update();
+
+         }
+
+         }
+
+         //STEP 10: Overdrive forwards into slot
+         if (step9 && !step10) {
+
+         if (counter < 1) {
+         initPosition = IMUUnit2.getPosition().y;
+         counter++;
+         }
+
+         motorbackleft.setPower(0.5);
+         motorbackright.setPower(0.5);
+         motorfrontleft.setPower(0.5);
+         motorfrontright.setPower(0.5);
+
+         if (Math.abs(Math.abs(IMUUnit2.getPosition().y - initPosition) - lastLeg*1.1) <= 0.05) {
+
+         //Will exit out of state 10, kills state 9
+
+         step10 = true;
+
+         counter = 0;
+
+         telemetry.addData("Step 10", "Compelted");
+         telemetry.update();
+
+         }
+
+         }
+
+         //STEP 11: Go to standby
+         if(step10) {
+
+         servogripper.setPosition(0.2);
+
+         telemetry.addData("All systems nominal", "Go for teleOP");
+         telemetry.update();
+
+         }
+         */
+
+
+        if(!step6 && step5){
+            motorbackleft.setPower(-0.15);
+            motorbackright.setPower(0.35);
+            motorfrontleft.setPower(-0.15);
+            motorfrontright.setPower(0.35);
+
+            try {
+                TimeUnit.SECONDS.sleep(2);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            step6 = true;
+        }
+
+        if(step6) {
+            motorbackleft.setPower(0);
+            motorbackright.setPower(0);
+            motorfrontleft.setPower(0);
+            motorfrontright.setPower(0);
+        }
+
+    }
+
+    String format(OpenGLMatrix transformationMatrix)
+    {
+        return (transformationMatrix != null) ? transformationMatrix.formatAsTransform() : "null";
+    }
+
+}
